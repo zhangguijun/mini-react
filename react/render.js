@@ -1,22 +1,25 @@
-function render(element, container) {
-    // 处理render
-
-    const dom = element.type == "TEXT_ELEMENT" ? document.createTextNode('') : document.createElement(element.type);
+function createDom(fiber) {
+    const dom = fiber.type == "TEXT_ELEMENT" ? document.createTextNode('') : document.createElement(fiber.type);
     // 赋予属性
-    Object.keys(element.props).filter(key => key !== 'children').forEach(name => {
-        dom[name] = element.props[name]
+    Object.keys(fiber.props).filter(key => key !== 'children').forEach(name => {
+        dom[name] = fiber.props[name]
 
     })
-    // 递归渲染子元素 一旦开始结束不了 
-    // element.props.children.forEach(child => {
-    //     render(child, dom)
-    // })
-    // 重构渲染逻辑
 
+    return dom;
+}
 
+function render(element, container) {
 
-
-    container.appendChild(dom);
+    nextUnitOfWork = {
+        dom: container,
+        props: {
+            children: [element]
+        },
+        sibling: null,
+        child: null,
+        parent: null
+    }
 }
 
 
@@ -38,7 +41,60 @@ function workLoop(deadLine) {
 }
 requestIdleCallback(workLoop)
 
-function performUnitOfWork(nextUnitOfWork) {
+function performUnitOfWork(fiber) {
+    // add dom node
+
+    if (!fiber.dom) {
+        fiber.dom = createDom(fiber)
+    }
+    if (fiber.parent) {
+        fiber.parent.dom.appendChild(fiber.dom)
+    }
+    // create new fibers
+
+    const element = fiber.props.children;
+    let preSibling = null;
+
+    for (let index = 0; index < element.length; index++) {
+        // const element = array[index];
+        const newFiber = {
+            type: element[index].type,
+            props: element[index].props,
+            parent: fiber,
+            dom: null,
+            child: null,
+            sibling: null
+        }
+        if (index === 0) { // 如果是第一个就是亲儿子否则就是亲儿子的兄弟
+            fiber.child = newFiber
+        } else {
+            preSibling.sibling = newFiber;
+        }
+        preSibling = newFiber;
+
+    }
+
+    // return next unit of work
+    //  We first try with the child, then with the sibling, then with the uncle, and so on.
+    if (fiber.child) {
+        return fiber.child
+    }
+
+    let nextFiber = fiber;
+
+    while (nextFiber) {
+        if (nextFiber.sibling) {
+            return nextFiber.sibling
+        }
+        nextFiber = nextFiber.parent;
+    }
+
+
+
+
+
+
+
 
 }
 
