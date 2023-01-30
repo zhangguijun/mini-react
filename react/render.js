@@ -11,7 +11,7 @@ function createDom(fiber) {
 
 function render(element, container) {
 
-    nextUnitOfWork = {
+    workInProgressRoot = {
         dom: container,
         props: {
             children: [element]
@@ -20,11 +20,31 @@ function render(element, container) {
         child: null,
         parent: null
     }
+
+    nextUnitOfWork = workInProgressRoot;
 }
 
 
 let nextUnitOfWork = null;
+let workInProgressRoot = null;
 
+function commitRoot() {
+    commitWork(workInProgressRoot.child);
+    workInProgressRoot = null;
+}
+
+function commitWork(fiber) {
+    if (!fiber) {
+        return
+    }
+
+    const domParent = fiber.parent.dom;
+
+    domParent.appendChild(fiber.dom);
+
+    commitWork(fiber.child);
+    commitWork(fiber.sibling)
+}
 function workLoop(deadLine) {
     let shouldYield = false; // 是否需要暂停
     // 有工作切不用暂停
@@ -36,7 +56,11 @@ function workLoop(deadLine) {
         shouldYield = deadLine.timeRemaining() < 1
     }
 
-    requestIdleCallback(workLoop)
+    requestIdleCallback(workLoop);
+    // 异步渲染 同步提交
+    if (!nextUnitOfWork && workInProgressRoot) {
+        commitRoot();
+    }
 
 }
 requestIdleCallback(workLoop)
@@ -47,9 +71,10 @@ function performUnitOfWork(fiber) {
     if (!fiber.dom) {
         fiber.dom = createDom(fiber)
     }
-    if (fiber.parent) {
-        fiber.parent.dom.appendChild(fiber.dom)
-    }
+    // // 追加父级dom
+    // if (fiber.parent) {
+    //     fiber.parent.dom.appendChild(fiber.dom)
+    // }
     // create new fibers
 
     const element = fiber.props.children;
